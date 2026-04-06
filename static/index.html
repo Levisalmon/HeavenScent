@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HeavenScent</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="card" id="form-card">
+    <h1>HeavenScent</h1>
+    <p class="subtitle">Find your perfect scent for any mood or moment.</p>
+
+    <label for="city">City</label>
+    <div class="city-wrapper">
+      <input type="text" id="city" placeholder="e.g. Dallas" autocomplete="off" />
+      <ul id="city-suggestions"></ul>
+    </div>
+
+    <label for="activities">What's on your agenda today?</label>
+    <textarea id="activities" placeholder="e.g. gym in the morning, work from home, date night"></textarea>
+
+    <label>Fragrance preference</label>
+    <div class="toggles">
+      <button type="button" class="toggle active" data-value="For Men">For Men</button>
+      <button type="button" class="toggle active" data-value="For Women">For Women</button>
+      <button type="button" class="toggle active" data-value="Unisex">Unisex</button>
+    </div>
+
+    <button id="btn" onclick="getSuggestion()">Find My Scent</button>
+  </div>
+
+  <div class="card" id="result-card" style="display:none">
+    <div id="image-area">
+      <img id="cologne-image" src="" alt="" style="display:none" />
+    </div>
+    <div id="result-body">
+      <p id="cologne-name"></p>
+      <p id="weather"></p>
+      <p id="suggestion"></p>
+      <a id="amazon-btn" href="#" target="_blank" rel="noopener">Buy on Amazon</a>
+      <button onclick="location.reload()">Try Something Else</button>
+    </div>
+  </div>
+
+  <script>
+    function renderMarkdown(text) {
+      const escaped = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      const lines = escaped.split('\n');
+      let html = '';
+      let inList = false;
+
+      for (const raw of lines) {
+        const line = raw
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+        const heading = line.match(/^(#{1,3}) (.+)$/);
+        const listItem = line.match(/^[-*] (.+)$/);
+
+        if (heading) {
+          if (inList) { html += '</ul>'; inList = false; }
+          const tag = `h${heading[1].length}`;
+          html += `<${tag}>${heading[2]}</${tag}>`;
+        } else if (listItem) {
+          if (!inList) { html += '<ul>'; inList = true; }
+          html += `<li>${listItem[1]}</li>`;
+        } else {
+          if (inList) { html += '</ul>'; inList = false; }
+          html += line === '' ? '<br>' : `<p>${line}</p>`;
+        }
+      }
+      if (inList) html += '</ul>';
+      return html;
+    }
+
+    const cityInput = document.getElementById('city');
+    const suggestions = document.getElementById('city-suggestions');
+    let debounceTimer;
+
+    cityInput.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      const q = cityInput.value.trim();
+      if (q.length < 2) { suggestions.innerHTML = ''; suggestions.style.display = 'none'; return; }
+      debounceTimer = setTimeout(async () => {
+        const res = await fetch(`/cities?q=${encodeURIComponent(q)}`);
+        if (!res.ok) return;
+        const cities = await res.json();
+        if (cities.length === 0) { suggestions.style.display = 'none'; return; }
+        suggestions.innerHTML = cities.map(c => `<li>${c}</li>`).join('');
+        suggestions.style.display = 'block';
+      }, 300);
+    });
+
+    suggestions.addEventListener('click', (e) => {
+      if (e.target.tagName === 'LI') {
+        cityInput.value = e.target.textContent;
+        suggestions.innerHTML = '';
+        suggestions.style.display = 'none';
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.city-wrapper')) {
+        suggestions.innerHTML = '';
+        suggestions.style.display = 'none';
+      }
+    });
+
+    document.querySelectorAll('.toggle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const active = document.querySelectorAll('.toggle.active');
+        if (btn.classList.contains('active') && active.length === 1) return;
+        btn.classList.toggle('active');
+      });
+    });
+
+    async function getSuggestion() {
+      const city = document.getElementById('city').value.trim();
+      const activities = document.getElementById('activities').value.trim();
+      const preferences = [...document.querySelectorAll('.toggle.active')].map(b => b.dataset.value);
+      const btn = document.getElementById('btn');
+
+      if (!city || !activities) {
+        alert('Please fill in both fields.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Thinking...';
+
+      const response = await fetch('/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ city, activities, preferences }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.detail || 'Something went wrong. Please try again.');
+        btn.disabled = false;
+        btn.textContent = 'Find My Scent';
+        return;
+      }
+
+      document.getElementById('weather').textContent = `${data.city} — ${data.weather_summary}`;
+      const nameEl = document.getElementById('cologne-name');
+      nameEl.textContent = data.cologne_name || '';
+      const nameLen = (data.cologne_name || '').length;
+      nameEl.classList.toggle('long-name', nameLen > 20 && nameLen <= 32);
+      nameEl.classList.toggle('very-long-name', nameLen > 32);
+      document.getElementById('suggestion').innerHTML = renderMarkdown(data.suggestion);
+
+      const img = document.getElementById('cologne-image');
+      const amazonBtn = document.getElementById('amazon-btn');
+      if (data.amazon_url) {
+        amazonBtn.href = data.amazon_url;
+        amazonBtn.style.display = 'block';
+      } else {
+        amazonBtn.style.display = 'none';
+      }
+
+      const imageArea = document.getElementById('image-area');
+      if (data.image_url) {
+        img.src = data.image_url;
+        img.alt = data.cologne_name || 'Cologne';
+        img.style.display = 'block';
+        imageArea.style.display = 'flex';
+      } else {
+        img.style.display = 'none';
+        imageArea.style.display = 'none';
+      }
+
+      document.getElementById('form-card').style.display = 'none';
+      document.getElementById('result-card').style.display = 'block';
+    }
+  </script>
+</body>
+</html>

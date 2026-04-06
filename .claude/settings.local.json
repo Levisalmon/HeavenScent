@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/Levi/AppData/Local/Temp/claude/C--Users-Levi-claude-test-cologne-app/2487dcff-02e7-4f9e-99a2-11def729dcbf/tasks/**)",
+      "Bash(netstat -ano)",
+      "Bash(curl:*)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('images_results',[{}]\\)[0].get\\('original','ERROR: '+str\\(d.get\\('error','unknown'\\)\\)\\)\\)\")"
+    ]
+  }
+}
