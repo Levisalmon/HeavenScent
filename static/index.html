@@ -5,8 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HeavenScent</title>
   <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+  <div id="auth-bar">
+    <div id="auth-logged-out">
+      <input type="email" id="auth-email" placeholder="Email" autocomplete="email" />
+      <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password" />
+      <button onclick="signIn()">Sign In</button>
+      <button onclick="signUp()">Sign Up</button>
+    </div>
+    <div id="auth-logged-in" style="display:none">
+      <span id="auth-email-display"></span>
+      <button onclick="showCollection()">My Collection</button>
+      <button onclick="signOut()">Sign Out</button>
+    </div>
+    <p id="auth-message"></p>
+  </div>
+
   <div class="card" id="form-card">
     <h1>HeavenScent</h1>
     <p class="subtitle">Find your perfect scent for any mood or moment.</p>
@@ -38,12 +54,185 @@
       <p id="cologne-name"></p>
       <p id="weather"></p>
       <p id="suggestion"></p>
+      <button id="save-btn" style="display:none" onclick="saveToCollection()">Add to My Collection</button>
       <a id="amazon-btn" href="#" target="_blank" rel="noopener">Buy on Amazon</a>
       <button onclick="location.reload()">Try Something Else</button>
     </div>
   </div>
 
+  <div class="card" id="collection-card" style="display:none">
+    <div id="collection-header">
+      <h2>My Collection</h2>
+      <button onclick="showForm()">Back</button>
+    </div>
+    <div id="collection-list"></div>
+    <div id="collection-add">
+      <input type="text" id="collection-input" placeholder="Add a fragrance by name" />
+      <button onclick="addManual()">Add</button>
+    </div>
+  </div>
+
   <script>
+    const SUPABASE_URL = 'https://lxdbrpjtcvvdicseykfr.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_5zoRe7nF9BHFKp-xD_xP8Q_fY5so9eO';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentResult = null;
+
+    // ── Auth state ──────────────────────────────────────────────────────────
+    _supabase.auth.onAuthStateChange((event, session) => {
+      const loggedOut = document.getElementById('auth-logged-out');
+      const loggedIn = document.getElementById('auth-logged-in');
+      const emailDisplay = document.getElementById('auth-email-display');
+      const saveBtn = document.getElementById('save-btn');
+
+      if (session) {
+        loggedOut.style.display = 'none';
+        loggedIn.style.display = 'flex';
+        emailDisplay.textContent = session.user.email;
+        if (currentResult) saveBtn.style.display = 'block';
+      } else {
+        loggedOut.style.display = 'flex';
+        loggedIn.style.display = 'none';
+        saveBtn.style.display = 'none';
+      }
+    });
+
+    async function getToken() {
+      const { data: { session } } = await _supabase.auth.getSession();
+      return session?.access_token?.trim() ?? null;
+    }
+
+    function setAuthMessage(msg) {
+      document.getElementById('auth-message').textContent = msg;
+    }
+
+    async function signIn() {
+      const email = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value;
+      const { error } = await _supabase.auth.signInWithPassword({ email, password });
+      if (error) setAuthMessage(error.message);
+      else setAuthMessage('');
+    }
+
+    async function signUp() {
+      const email = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value;
+      const { error } = await _supabase.auth.signUp({ email, password });
+      if (error) setAuthMessage(error.message);
+      else setAuthMessage('Account created! You can now sign in.');
+    }
+
+    async function signOut() {
+      await _supabase.auth.signOut();
+      setAuthMessage('');
+    }
+
+    // ── Navigation ──────────────────────────────────────────────────────────
+    function showForm() {
+      document.getElementById('form-card').style.display = 'block';
+      document.getElementById('result-card').style.display = 'none';
+      document.getElementById('collection-card').style.display = 'none';
+    }
+
+    async function showCollection() {
+      document.getElementById('form-card').style.display = 'none';
+      document.getElementById('result-card').style.display = 'none';
+      document.getElementById('collection-card').style.display = 'block';
+      await renderCollection();
+    }
+
+    // ── Collection ──────────────────────────────────────────────────────────
+    async function renderCollection() {
+      const token = await getToken();
+      const res = await fetch('/collection', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const items = await res.json();
+      const list = document.getElementById('collection-list');
+
+      if (items.length === 0) {
+        list.innerHTML = '<p id="collection-empty">Your collection is empty.</p>';
+        return;
+      }
+
+      list.innerHTML = items.map(item => `
+        <div class="collection-item" data-id="${item.id}">
+          <span>${item.cologne_name}</span>
+          <button onclick="deleteItem('${item.id}')">Remove</button>
+        </div>
+      `).join('');
+    }
+
+    async function saveToCollection() {
+      if (!currentResult) return;
+      const token = await getToken();
+      const saveBtn = document.getElementById('save-btn');
+
+      const res = await fetch('/collection', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          cologne_name: currentResult.cologne_name,
+          image_url: currentResult.image_url,
+          amazon_url: currentResult.amazon_url,
+        }),
+      });
+
+      if (res.ok) {
+        saveBtn.textContent = 'Saved!';
+        saveBtn.disabled = true;
+      } else if (res.status === 409) {
+        saveBtn.textContent = 'Already in collection';
+        saveBtn.disabled = true;
+      }
+    }
+
+    async function addManual() {
+      const input = document.getElementById('collection-input');
+      const name = input.value.trim();
+      if (!name) return;
+      const token = await getToken();
+      if (!token) { alert('Please sign in first.'); return; }
+
+      try {
+        const res = await fetch('/collection', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ cologne_name: name }),
+        });
+
+        if (res.ok) {
+          input.value = '';
+          await renderCollection();
+        } else if (res.status === 409) {
+          input.value = '';
+          alert('Already in your collection.');
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(`Error ${res.status}: ${err.detail || 'Something went wrong.'}`);
+        }
+      } catch (e) {
+        alert(`Request failed: ${e.message}`);
+      }
+    }
+
+    async function deleteItem(id) {
+      const token = await getToken();
+      await fetch(`/collection/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      await renderCollection();
+    }
+
+    // ── Suggestion form ─────────────────────────────────────────────────────
     function renderMarkdown(text) {
       const escaped = text
         .replace(/&/g, '&amp;')
@@ -148,6 +337,8 @@
         return;
       }
 
+      currentResult = data;
+
       document.getElementById('weather').textContent = `${data.city} — ${data.weather_summary}`;
       const nameEl = document.getElementById('cologne-name');
       nameEl.textContent = data.cologne_name || '';
@@ -175,6 +366,12 @@
         img.style.display = 'none';
         imageArea.style.display = 'none';
       }
+
+      const saveBtn = document.getElementById('save-btn');
+      saveBtn.textContent = 'Add to My Collection';
+      saveBtn.disabled = false;
+      const { data: { session } } = await _supabase.auth.getSession();
+      if (session) saveBtn.style.display = 'block';
 
       document.getElementById('form-card').style.display = 'none';
       document.getElementById('result-card').style.display = 'block';

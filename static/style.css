@@ -276,3 +276,205 @@ button:disabled {
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.8);
 }
+
+/* ── Auth bar ────────────────────────────────────────────────────────────── */
+#auth-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 10px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+#auth-logged-out,
+#auth-logged-in {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+#auth-bar input {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  outline: none;
+  width: 180px;
+}
+
+#auth-bar input:focus {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+#auth-bar button {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 6px 14px;
+  text-transform: uppercase;
+  transition: background 0.15s, color 0.15s;
+  width: auto;
+}
+
+#auth-bar button:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+#auth-email-display {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.8rem;
+}
+
+#auth-message {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.75rem;
+  min-height: 1em;
+}
+
+/* ── Collection card ─────────────────────────────────────────────────────── */
+#collection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 36px 48px 0;
+}
+
+#collection-header h2 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2rem;
+  color: #fff;
+  letter-spacing: 0.05em;
+}
+
+#collection-header button {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 6px 14px;
+  text-transform: uppercase;
+  transition: background 0.15s, color 0.15s;
+  width: auto;
+}
+
+#collection-header button:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+#collection-list {
+  padding: 24px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 80px;
+}
+
+.collection-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px 16px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.9rem;
+}
+
+.collection-item button {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  transition: color 0.15s;
+  width: auto;
+}
+
+.collection-item button:hover {
+  color: rgba(255, 100, 100, 0.8);
+  background: transparent;
+}
+
+#collection-empty {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 20px 0;
+}
+
+#collection-add {
+  display: flex;
+  gap: 8px;
+  padding: 0 48px 36px;
+}
+
+#collection-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 10px 14px;
+  outline: none;
+}
+
+#collection-input:focus {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+#collection-add button {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 10px 20px;
+  text-transform: uppercase;
+  transition: background 0.15s, color 0.15s;
+  width: auto;
+}
+
+#collection-add button:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+/* Push page content below fixed auth bar */
+body {
+  padding-top: 80px;
+}
