@@ -21,10 +21,11 @@ class SuggestRequest(BaseModel):
 
 class CollectionItemCreate(BaseModel):
     cologne_name: str
-    brand: str | None = None
-    notes: str | None = None
     image_url: str | None = None
     amazon_url: str | None = None
+    fragrance_id: str | None = None
+    brand: str | None = None
+    gender: str | None = None
 
 
 @app.get("/")
@@ -35,6 +36,39 @@ def root():
 @app.get("/cities")
 def cities(q: str):
     return search_cities(q)
+
+
+@app.get("/fragrances/search")
+def search_fragrances(q: str):
+    if len(q) < 2:
+        return []
+    result = (
+        supabase.table("fragrances")
+        .select("id, name, brand, gender, image_url, stored_image_url, rating, rating_count")
+        .or_(f"name.ilike.%{q}%,brand.ilike.%{q}%")
+        .order("rating_count", desc=True)
+        .limit(10)
+        .execute()
+    )
+    return result.data
+
+
+def _find_fragrance_in_db(name: str) -> dict | None:
+    """Best-effort match of a Gemini-suggested name against the fragrances table."""
+    fields = "id, name, brand, gender"
+    for term in [name, name.strip().rsplit(None, 1)[-1]]:
+        if len(term) <= 3:
+            continue
+        result = (
+            supabase.table("fragrances")
+            .select(fields)
+            .ilike("name", f"%{term}%")
+            .limit(1)
+            .execute()
+        )
+        if result.data:
+            return result.data[0]
+    return None
 
 
 @app.get("/collection")
@@ -66,10 +100,11 @@ def add_to_collection(item: CollectionItemCreate, user: dict = Depends(get_curre
         .insert({
             "user_id": user["user_id"],
             "cologne_name": item.cologne_name,
-            "brand": item.brand,
-            "notes": item.notes,
             "image_url": item.image_url,
             "amazon_url": item.amazon_url,
+            "fragrance_id": item.fragrance_id,
+            "brand": item.brand,
+            "gender": item.gender,
         })
         .execute()
     )
@@ -99,6 +134,7 @@ def suggest(request: SuggestRequest):
     suggestion = get_suggestion(request.city, weather["weather_summary"], request.activities, request.preferences)
     image_url = get_cologne_image(suggestion["name"]) if suggestion["name"] else None
     amazon_url = f"https://www.amazon.com/s?k={quote_plus(suggestion['name'])}&tag=levisalmon0c-20" if suggestion["name"] else None
+    db = _find_fragrance_in_db(suggestion["name"]) if suggestion["name"] else None
     return {
         "city": request.city,
         "weather_summary": weather["weather_summary"],
@@ -107,4 +143,7 @@ def suggest(request: SuggestRequest):
         "suggestion": suggestion["explanation"],
         "image_url": image_url,
         "amazon_url": amazon_url,
+        "fragrance_id": db["id"] if db else None,
+        "brand": db["brand"] if db else None,
+        "gender": db["gender"] if db else None,
     }
